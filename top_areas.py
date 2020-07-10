@@ -11,7 +11,7 @@ import argparse
 
 def create_histogram(dimensions):
     histogram = {}
-    range_values = [x for x in range(0,600,50)][1:]
+    range_values = [x for x in range(0,600,interval)][1:]
 
     dict = []
     temp = []
@@ -35,17 +35,23 @@ def create_histogram(dimensions):
     plt.ylabel('Usage')
     plt.title('IMAGE annotation frequency by pixel size')
 
-    plt.show()
+    plt.savefig('output/frequency.png')
+
 
 
 def crop_and_save(x,y,width,height,image,file_name):
-    if not os.path.exists('cropped_anns'):
-        os.mkdir('cropped_anns')
+    if not os.path.exists('output/cropped_anns_rgb'):
+        os.mkdir('output/cropped_anns_rgb')
+    if not os.path.exists('output/cropped_anns_gray'):
+        os.mkdir('output/cropped_anns_gray')
 
     try:
-        new_image = image[y:y+height,x:x+width]
-        cv2.imwrite('cropped_anns/'+ str(number_of_annotations) + '-'
-                    + file_name.split('/')[-1], new_image)
+        rgb_image = image[y:y+height,x:x+width]
+        img_gray = cv2.cvtColor(rgb_image, cv2.COLOR_BGR2GRAY)
+        cv2.imwrite('output/cropped_anns_rgb/'+ str(number_of_annotations) + '-'
+                    + file_name.split('/')[-1], rgb_image)
+        cv2.imwrite('output/cropped_anns_gray/' + str(number_of_annotations) + '-'
+                    + file_name.split('/')[-1], img_gray)
     except:
         print('DOES NOT WORK',file_name)
 
@@ -78,10 +84,11 @@ def driver(path):
 
                     # this will take the image and the ann coordinates
                     # and then save the cropped annotation in a separate folder
-                    # img_path = path + filename.split('.')[0] + '.' + 'jpg'
-                    # image = cv2.imread(img_path)
-                    # crop_and_save(int(xmin),int(ymin),int(width),
-                    #               int(height),image,img_path)
+                    if crop:
+                        img_path = path + filename.split('.')[0] + '.' + 'jpg'
+                        image = cv2.imread(img_path)
+                        crop_and_save(int(xmin),int(ymin),int(width),
+                                  int(height),image,img_path)
 
 
                     line = fp.readline()
@@ -95,7 +102,8 @@ def driver(path):
 
     average_per_image =  number_of_annotations / len(total.items())
 
-
+    with open('output/output.txt', 'a') as the_file:
+        the_file.write(f'Average Number of Annotations per image {average_per_image}')
     print("average number of annotations",average_per_image)
 
 if __name__ == '__main__':
@@ -115,6 +123,20 @@ if __name__ == '__main__':
     #Command Line Arguments
     #location to kitti file format
 
+    if not os.path.exists('output'):
+        os.mkdir('output')
 
+    parser = argparse.ArgumentParser()
 
-    driver('deep-test-2/test-data/box-train/')
+    parser.add_argument('-data', '--dataset', help="Enter location of dataset; must be in kitti format")
+    parser.add_argument('-crop', '--crop', help="To crop images annotations or not",default=True)
+    parser.add_argument('-range', '--range', help="Interval for building histogram", default=50)
+
+    args = parser.parse_args()
+
+    global crop,interval
+    crop = args.crop
+    interval = args.range
+
+    args = parser.parse_args()
+    driver(args.dataset)
